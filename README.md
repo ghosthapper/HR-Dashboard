@@ -140,40 +140,6 @@ The dashboard expects a CSV file with the following columns:
 - **Summary Stats** - Statistical summary of filtered data
 - **Attrition Analysis** - Department-level attrition metrics
 
-## 🔧 Customization
-
-### Adding New Visualizations
-```python
-# Add to the main dashboard code
-fig_new = px.your_chart_type(
-    filtered_df,
-    x='your_x_column',
-    y='your_y_column',
-    title='Your Chart Title'
-)
-st.plotly_chart(fig_new, use_container_width=True)
-```
-
-### Custom Filters
-```python
-# Add to sidebar section
-custom_filter = st.sidebar.multiselect(
-    "Your Filter Name",
-    options=df['Your_Column'].unique(),
-    default=df['Your_Column'].unique()
-)
-```
-
-### Theme Customization
-The dashboard uses Streamlit's default theme. For custom styling, add CSS:
-```python
-st.markdown("""
-<style>
-/* Your custom CSS here */
-</style>
-""", unsafe_allow_html=True)
-```
-
 ## 📊 Sample Insights Generated
 
 The dashboard automatically generates insights such as:

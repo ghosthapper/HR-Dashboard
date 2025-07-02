@@ -1,11 +1,3 @@
-# ============================================================================
-# HR ATTRITION DASHBOARD
-# ============================================================================
-# File: hr_dashboard.py
-# Purpose: Interactive HR Analytics Dashboard using Streamlit
-# Usage: streamlit run hr_dashboard.py
-# Requirements: Run generate_hr_data.py first to create the CSV file
-
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -28,17 +20,16 @@ st.set_page_config(
 def load_hr_data(filename='hr_employee_data.csv'):
     """Load HR data from CSV file"""
     if not os.path.exists(filename):
-        st.error(f"❌ Data file '{filename}' not found!")
+        st.error(f"Data file '{filename}' not found!")
         st.error("Please run the data generation script first to create the CSV file.")
-        st.info("💡 Run: `python generate_hr_data.py` in your terminal")
         st.stop()
     
     try:
         df = pd.read_csv(filename)
-        st.success(f"✅ Successfully loaded {len(df):,} employee records from {filename}")
+        st.success(f"Successfully loaded {len(df):,} employee records from {filename}")
         return df
     except Exception as e:
-        st.error(f"❌ Error loading data: {str(e)}")
+        st.error(f"Error loading data: {str(e)}")
         st.stop()
 
 # Load the data
@@ -246,7 +237,6 @@ with col1:
         st.plotly_chart(fig3, use_container_width=True)
 
 with col2:
-    # Income Distribution by Attrition
     fig4 = px.box(
         filtered_df, 
         x='Attrition', 
@@ -262,18 +252,12 @@ with col2:
 st.subheader("⏱️ Tenure & Work-Life Balance Impact")
 col1, col2 = st.columns(2)
 
-# Replace the tenure analysis section (around lines 270-284) with this fixed version:
-
 with col1:
-    # Tenure vs Attrition - FIXED VERSION
     if filtered_df['Years_At_Company'].max() > 0:
-        # Create tenure bins and convert to string labels
         tenure_bins = pd.cut(filtered_df['Years_At_Company'], bins=5, precision=0)
         
-        # Convert intervals to string labels for JSON serialization
         tenure_labels = tenure_bins.astype(str)
         
-        # Create a temporary dataframe for grouping
         temp_df = filtered_df.copy()
         temp_df['Tenure_Range'] = tenure_labels
         
@@ -283,7 +267,6 @@ with col1:
             tenure_attrition['Total'] = tenure_attrition.sum(axis=1)
             tenure_attrition['Attrition_Rate'] = (tenure_attrition['Yes'] / tenure_attrition['Total'] * 100).round(1)
             
-            # Reset index to get tenure ranges as a column
             tenure_plot_data = tenure_attrition.reset_index()
             
             fig5 = px.line(
@@ -297,7 +280,7 @@ with col1:
             fig5.update_layout(
                 height=400,
                 xaxis_title="Years at Company (Range)",
-                xaxis_tickangle=-45  # Rotate labels for better readability
+                xaxis_tickangle=-45
             )
             st.plotly_chart(fig5, use_container_width=True)
         else:
@@ -306,7 +289,6 @@ with col1:
         st.info("No tenure data available for analysis")
 
 with col2:
-    # Overtime and Travel Impact
     overtime_travel = filtered_df.groupby(['Over_Time', 'Business_Travel', 'Attrition']).size().unstack(fill_value=0)
     
     if len(overtime_travel) > 0:
@@ -330,12 +312,10 @@ with col2:
         fig6.update_layout(height=400, xaxis_tickangle=-45, showlegend=False)
         st.plotly_chart(fig6, use_container_width=True)
 
-# Performance Analysis
 st.subheader("🎯 Performance & Development Analysis")
 col1, col2 = st.columns(2)
 
 with col1:
-    # Performance Rating vs Attrition
     perf_attrition = filtered_df.groupby(['Performance_Rating', 'Attrition']).size().unstack(fill_value=0)
     perf_attrition['Total'] = perf_attrition.sum(axis=1)
     perf_attrition['Attrition_Rate'] = (perf_attrition['Yes'] / perf_attrition['Total'] * 100).round(1)
@@ -354,7 +334,6 @@ with col1:
     st.plotly_chart(fig7, use_container_width=True)
 
 with col2:
-    # Training vs Attrition
     training_attrition = filtered_df.groupby(['Training_Times_Last_Year', 'Attrition']).size().unstack(fill_value=0)
     training_attrition['Total'] = training_attrition.sum(axis=1)
     training_attrition['Attrition_Rate'] = (training_attrition['Yes'] / training_attrition['Total'] * 100).round(1)
@@ -372,20 +351,16 @@ with col2:
     fig8.update_layout(height=400, showlegend=False)
     st.plotly_chart(fig8, use_container_width=True)
 
-# Advanced Analytics
 st.subheader("🔍 Advanced Analytics & Insights")
 
-# Correlation Analysis
 st.subheader("📊 Factor Correlation Matrix")
 numeric_cols = ['Monthly_Income', 'Years_At_Company', 'Job_Satisfaction', 
                 'Environment_Satisfaction', 'Work_Life_Balance', 'Job_Level',
                 'Performance_Rating', 'Training_Times_Last_Year']
 
-# Create binary attrition column for correlation
 filtered_df_corr = filtered_df.copy()
 filtered_df_corr['Attrition_Binary'] = (filtered_df_corr['Attrition'] == 'Yes').astype(int)
 
-# Calculate correlations with attrition
 correlations = []
 for col in numeric_cols:
     if col in filtered_df_corr.columns:
@@ -409,10 +384,8 @@ if correlations:
     fig9.update_layout(height=500)
     st.plotly_chart(fig9, use_container_width=True)
 
-# Summary Insights
 st.subheader("💡 Key Insights & Recommendations")
 
-# Calculate key insights
 high_risk_dept = dept_attrition['Attrition_Rate'].idxmax() if len(dept_attrition) > 0 else "N/A"
 high_risk_age = age_attrition['Attrition_Rate'].idxmax() if len(age_attrition) > 0 else "N/A"
 avg_income_staying = filtered_df[filtered_df['Attrition'] == 'No']['Monthly_Income'].mean()
@@ -437,12 +410,10 @@ with col2:
     - Enhance work-life balance initiatives
     """)
 
-# Data Export Section
 st.subheader("📥 Data Export")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    # Export filtered data
     csv_data = filtered_df.to_csv(index=False)
     st.download_button(
         label="📊 Download Filtered Data (CSV)",
@@ -452,7 +423,6 @@ with col1:
     )
 
 with col2:
-    # Export summary statistics
     summary_stats = filtered_df.describe()
     summary_csv = summary_stats.to_csv()
     st.download_button(
@@ -463,7 +433,6 @@ with col2:
     )
 
 with col3:
-    # Export attrition analysis
     if len(dept_attrition) > 0:
         analysis_csv = dept_attrition.to_csv()
         st.download_button(

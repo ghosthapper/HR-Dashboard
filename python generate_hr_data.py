@@ -1,10 +1,3 @@
-# ============================================================================
-# HR DATA GENERATION SCRIPT
-# ============================================================================
-# File: generate_hr_data.py
-# Purpose: Generate mock HR employee data and save as CSV
-# Usage: python generate_hr_data.py
-
 import pandas as pd
 import numpy as np
 import os
@@ -12,9 +5,9 @@ from datetime import datetime
 
 def generate_mock_hr_data(n_employees=1500, filename='hr_employee_data.csv'):
     """
-    Generate mock HR employee data with realistic relationships between variables
+    Generate mock HR employee data
     """
-    print(f"🔄 Generating {n_employees:,} employee records...")
+    print(f"Generating {n_employees:,} employee records...")
     
     np.random.seed(42)
     
@@ -39,7 +32,6 @@ def generate_mock_hr_data(n_employees=1500, filename='hr_employee_data.csv'):
     data = []
     
     for i in range(n_employees):
-        # Demographics
         emp_age = np.random.normal(35, 10)
         emp_age = max(18, min(65, int(emp_age)))
         
@@ -57,7 +49,7 @@ def generate_mock_hr_data(n_employees=1500, filename='hr_employee_data.csv'):
         dept = np.random.choice(departments)
         job_role = np.random.choice(job_roles[dept])
         
-        # Experience and tenure
+        # Experience
         total_working_years = max(0, int(np.random.normal(emp_age - 22, 5)))
         years_at_company = max(0, min(total_working_years, int(np.random.exponential(3))))
         years_in_role = max(0, min(years_at_company, int(np.random.exponential(2))))
@@ -69,7 +61,7 @@ def generate_mock_hr_data(n_employees=1500, filename='hr_employee_data.csv'):
         monthly_income = int(np.random.normal(5000 + job_level * 2000, 1500))
         monthly_income = max(2000, monthly_income)
         
-        # Satisfaction scores (1-4 scale)
+        # Satisfaction scores
         job_satisfaction = np.random.randint(1, 5)
         environment_satisfaction = np.random.randint(1, 5)
         relationship_satisfaction = np.random.randint(1, 5)
@@ -84,7 +76,7 @@ def generate_mock_hr_data(n_employees=1500, filename='hr_employee_data.csv'):
         elif age_band == 'Over 55':
             attrition_prob += 0.05
         
-        # Satisfaction factor (lower satisfaction = higher attrition)
+        # Satisfaction factor
         avg_satisfaction = (job_satisfaction + environment_satisfaction + 
                           relationship_satisfaction + work_life_balance) / 4
         attrition_prob += (4 - avg_satisfaction) * 0.15
@@ -99,7 +91,7 @@ def generate_mock_hr_data(n_employees=1500, filename='hr_employee_data.csv'):
         if travel == 'Travel_Frequently':
             attrition_prob += 0.08
         
-        # Income factor (relative to job level)
+        # Income factor 
         expected_income = 3000 + job_level * 2500
         if monthly_income < expected_income * 0.8:
             attrition_prob += 0.12
@@ -139,7 +131,7 @@ def generate_mock_hr_data(n_employees=1500, filename='hr_employee_data.csv'):
         education = np.random.choice(education_levels, p=[0.15, 0.25, 0.35, 0.2, 0.05])
         edu_field = np.random.choice(education_fields)
         
-        # Stock options (higher level = more likely to have)
+        # Stock options
         stock_option_level = np.random.choice([0, 1, 2, 3], 
                                             p=[0.6, 0.25, 0.1, 0.05] if job_level < 3 
                                             else [0.3, 0.3, 0.3, 0.1])
@@ -203,33 +195,26 @@ def generate_mock_hr_data(n_employees=1500, filename='hr_employee_data.csv'):
     
     # Save to CSV
     df.to_csv(filename, index=False)
-    print(f"✅ HR data generated successfully!")
-    print(f"📁 File saved as: {filename}")
-    print(f"📊 Total employees: {len(df):,}")
-    print(f"📈 Attrition rate: {(df['Attrition'] == 'Yes').mean() * 100:.1f}%")
-    print(f"🏢 Departments: {', '.join(df['Department'].unique())}")
-    print(f"⏰ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"HR data generated successfully!")
+    print(f"File saved as: {filename}")
+    print(f"Total employees: {len(df):,}")
     
     return df
 
 def check_and_generate_data(filename='hr_employee_data.csv'):
     """Check if CSV file exists, if not generate it"""
     if not os.path.exists(filename):
-        print("🔄 CSV file not found. Generating new HR dataset...")
+        print("CSV file not found. Generating new HR dataset...")
         generate_mock_hr_data(filename=filename)
     else:
-        print(f"✅ Found existing CSV file: {filename}")
+        print(f"Found existing CSV file: {filename}")
         # Show file info
         df = pd.read_csv(filename)
-        print(f"📊 Records in file: {len(df):,}")
-        print(f"📈 Attrition rate: {(df['Attrition'] == 'Yes').mean() * 100:.1f}%")
+        print(f"Records in file: {len(df):,}")
 
 # Run data generation if this script is executed directly
 if __name__ == "__main__":
-    print("=" * 60)
-    print("🏢 HR EMPLOYEE DATA GENERATOR")
-    print("=" * 60)
+    print("HR EMPLOYEE DATA GENERATOR")
     check_and_generate_data()
-    print("=" * 60)
-    print("✨ Data generation complete!")
-    print("🚀 Now you can run: streamlit run hr_dashboard.py")
+    print("Data generation complete!")
+    print("Now you can run: streamlit run hr_dashboard.py")
