@@ -1,226 +1,119 @@
+# ============================================================================
+# HR ATTRITION DASHBOARD
+# ============================================================================
+# File: hr_dashboard.py
+# Purpose: Interactive HR Analytics Dashboard using Streamlit
+# Usage: streamlit run hr_dashboard.py
+# Requirements: Run generate_hr_data.py first to create the CSV file
+
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
-from datetime import datetime, timedelta
-import random
+from datetime import datetime
+import os
 
 # Set page config
-st.set_page_config(page_title="HR Attrition Dashboard", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="HR Attrition Dashboard", 
+    layout="wide", 
+    initial_sidebar_state="expanded",
+    page_icon="🏢"
+)
 
-# Function to generate mock HR data
+# Load data function
 @st.cache_data
-def generate_mock_data(n_employees=1500):
-    np.random.seed(42)
+def load_hr_data(filename='hr_employee_data.csv'):
+    """Load HR data from CSV file"""
+    if not os.path.exists(filename):
+        st.error(f"❌ Data file '{filename}' not found!")
+        st.error("Please run the data generation script first to create the CSV file.")
+        st.info("💡 Run: `python generate_hr_data.py` in your terminal")
+        st.stop()
     
-    # Base employee data
-    departments = ['R&D', 'Sales', 'HR', 'Finance', 'IT', 'Marketing']
-    job_roles = {
-        'R&D': ['Research Scientist', 'Laboratory Technician', 'Manufacturing Director', 'Healthcare Representative'],
-        'Sales': ['Sales Executive', 'Sales Representative', 'Manager'],
-        'HR': ['HR Manager', 'HR Specialist', 'Recruiter'],
-        'Finance': ['Financial Analyst', 'Accountant', 'Finance Manager'],
-        'IT': ['Software Engineer', 'Data Analyst', 'IT Support'],
-        'Marketing': ['Marketing Manager', 'Marketing Specialist', 'Content Creator']
-    }
-    
-    education_fields = ['Life Sciences', 'Medical', 'Marketing', 'Technical Degree', 'Other', 'Human Resources']
-    education_levels = ['High School', 'Associates Degree', 'Bachelor\'s Degree', 'Master\'s Degree', 'PhD']
-    marital_status = ['Single', 'Married', 'Divorced']
-    gender = ['Male', 'Female']
-    travel_frequency = ['Non-Travel', 'Travel_Rarely', 'Travel_Frequently']
-    age_bands = ['Under 25', '25 - 34', '35 - 44', '45 - 54', 'Over 55']
-    
-    data = []
-    
-    for i in range(n_employees):
-        # Demographics
-        emp_age = np.random.normal(35, 10)
-        emp_age = max(18, min(65, int(emp_age)))
-        
-        if emp_age < 25:
-            age_band = 'Under 25'
-        elif emp_age < 35:
-            age_band = '25 - 34'
-        elif emp_age < 45:
-            age_band = '35 - 44'
-        elif emp_age < 55:
-            age_band = '45 - 54'
-        else:
-            age_band = 'Over 55'
-        
-        dept = np.random.choice(departments)
-        job_role = np.random.choice(job_roles[dept])
-        
-        # Experience and tenure
-        total_working_years = max(0, int(np.random.normal(emp_age - 22, 5)))
-        years_at_company = max(0, min(total_working_years, int(np.random.exponential(3))))
-        years_in_role = max(0, min(years_at_company, int(np.random.exponential(2))))
-        years_since_promotion = max(0, min(years_in_role, int(np.random.exponential(1.5))))
-        years_with_manager = max(0, min(years_at_company, int(np.random.exponential(2))))
-        
-        # Job characteristics
-        job_level = min(4, max(1, int(np.random.gamma(2, 0.7)) + 1))
-        monthly_income = int(np.random.normal(5000 + job_level * 2000, 1500))
-        monthly_income = max(2000, monthly_income)
-        
-        # Satisfaction scores (1-4 scale)
-        job_satisfaction = np.random.randint(1, 5)
-        environment_satisfaction = np.random.randint(1, 5)
-        relationship_satisfaction = np.random.randint(1, 5)
-        work_life_balance = np.random.randint(1, 5)
-        
-        # Calculate attrition probability based on factors
-        attrition_prob = 0.1  # Base probability
-        
-        # Age factor
-        if age_band in ['Under 25', '25 - 34']:
-            attrition_prob += 0.1
-        elif age_band == 'Over 55':
-            attrition_prob += 0.05
-        
-        # Satisfaction factor (lower satisfaction = higher attrition)
-        avg_satisfaction = (job_satisfaction + environment_satisfaction + 
-                          relationship_satisfaction + work_life_balance) / 4
-        attrition_prob += (4 - avg_satisfaction) * 0.15
-        
-        # Overtime factor
-        overtime = np.random.choice(['Yes', 'No'], p=[0.3, 0.7])
-        if overtime == 'Yes':
-            attrition_prob += 0.1
-        
-        # Travel factor
-        travel = np.random.choice(travel_frequency, p=[0.4, 0.4, 0.2])
-        if travel == 'Travel_Frequently':
-            attrition_prob += 0.08
-        
-        # Income factor (relative to job level)
-        expected_income = 3000 + job_level * 2500
-        if monthly_income < expected_income * 0.8:
-            attrition_prob += 0.12
-        
-        # Years at company factor
-        if years_at_company < 2:
-            attrition_prob += 0.15
-        elif years_at_company > 10:
-            attrition_prob -= 0.05
-        
-        # Distance from home
-        distance_from_home = max(1, int(np.random.exponential(8)))
-        if distance_from_home > 20:
-            attrition_prob += 0.05
-        
-        # Performance rating
-        performance_rating = np.random.choice([1, 2, 3, 4], p=[0.05, 0.15, 0.6, 0.2])
-        if performance_rating <= 2:
-            attrition_prob += 0.1
-        
-        # Training factor
-        training_times = np.random.randint(0, 7)
-        if training_times == 0:
-            attrition_prob += 0.05
-        
-        # Cap probability
-        attrition_prob = min(0.8, max(0.02, attrition_prob))
-        
-        # Determine attrition
-        attrition = 'Yes' if np.random.random() < attrition_prob else 'No'
-        cf_attrition = 'Ex-Employees' if attrition == 'Yes' else 'Current Employees'
-        cf_current_employee = 0 if attrition == 'Yes' else 1
-        
-        # Additional fields
-        marital = np.random.choice(marital_status)
-        emp_gender = np.random.choice(gender)
-        education = np.random.choice(education_levels, p=[0.15, 0.25, 0.35, 0.2, 0.05])
-        edu_field = np.random.choice(education_fields)
-        
-        # Stock options (higher level = more likely to have)
-        stock_option_level = np.random.choice([0, 1, 2, 3], 
-                                            p=[0.6, 0.25, 0.1, 0.05] if job_level < 3 
-                                            else [0.3, 0.3, 0.3, 0.1])
-        
-        # Companies worked
-        num_companies = max(1, min(8, int(np.random.exponential(1.5)) + 1))
-        
-        # Salary hike percentage
-        percent_salary_hike = max(0, int(np.random.normal(15, 5)))
-        
-        # Job involvement
-        job_involvement = np.random.randint(1, 5)
-        
-        # Hourly and daily rates
-        hourly_rate = max(30, int(np.random.normal(65, 20)))
-        daily_rate = max(100, int(np.random.normal(800, 300)))
-        monthly_rate = max(5000, int(np.random.normal(15000, 5000)))
-        
-        data.append({
-            'Employee_Number': f'STAFF-{i+1}',
-            'Age': emp_age,
-            'CF_age_band': age_band,
-            'Gender': emp_gender,
-            'Marital_Status': marital,
-            'Department': dept,
-            'Job_Role': job_role,
-            'Job_Level': job_level,
-            'Education': education,
-            'Education_Field': edu_field,
-            'Total_Working_Years': total_working_years,
-            'Years_At_Company': years_at_company,
-            'Years_In_Current_Role': years_in_role,
-            'Years_Since_Last_Promotion': years_since_promotion,
-            'Years_With_Curr_Manager': years_with_manager,
-            'Monthly_Income': monthly_income,
-            'Percent_Salary_Hike': percent_salary_hike,
-            'Stock_Option_Level': stock_option_level,
-            'Job_Satisfaction': job_satisfaction,
-            'Environment_Satisfaction': environment_satisfaction,
-            'Relationship_Satisfaction': relationship_satisfaction,
-            'Work_Life_Balance': work_life_balance,
-            'Job_Involvement': job_involvement,
-            'Performance_Rating': performance_rating,
-            'Over_Time': overtime,
-            'Business_Travel': travel,
-            'Distance_From_Home': distance_from_home,
-            'Training_Times_Last_Year': training_times,
-            'Num_Companies_Worked': num_companies,
-            'Attrition': attrition,
-            'CF_attrition_label': cf_attrition,
-            'CF_current_Employee': cf_current_employee,
-            'Hourly_Rate': hourly_rate,
-            'Daily_Rate': daily_rate,
-            'Monthly_Rate': monthly_rate,
-            'Employee_Count': 1,
-            'Standard_Hours': 80,
-            'Over18': 'Y'
-        })
-    
-    return pd.DataFrame(data)
+    try:
+        df = pd.read_csv(filename)
+        st.success(f"✅ Successfully loaded {len(df):,} employee records from {filename}")
+        return df
+    except Exception as e:
+        st.error(f"❌ Error loading data: {str(e)}")
+        st.stop()
 
-# Generate data
-df = generate_mock_data()
+# Load the data
+df = load_hr_data()
 
 # Dashboard Title
 st.title("🏢 HR Attrition Analytics Dashboard")
+st.markdown("*Comprehensive analysis of employee attrition patterns and key insights*")
 st.markdown("---")
 
 # Sidebar filters
 st.sidebar.header("📊 Dashboard Filters")
-selected_dept = st.sidebar.multiselect("Department", options=df['Department'].unique(), default=df['Department'].unique())
-selected_age = st.sidebar.multiselect("Age Band", options=df['CF_age_band'].unique(), default=df['CF_age_band'].unique())
-income_range = st.sidebar.slider("Monthly Income Range", int(df['Monthly_Income'].min()), int(df['Monthly_Income'].max()), 
-                                 (int(df['Monthly_Income'].min()), int(df['Monthly_Income'].max())))
+st.sidebar.markdown("*Filter the data to focus on specific employee segments*")
+
+selected_dept = st.sidebar.multiselect(
+    "🏢 Department", 
+    options=df['Department'].unique(), 
+    default=df['Department'].unique(),
+    help="Select one or more departments to analyze"
+)
+
+selected_age = st.sidebar.multiselect(
+    "👥 Age Band", 
+    options=df['CF_age_band'].unique(), 
+    default=df['CF_age_band'].unique(),
+    help="Filter by employee age groups"
+)
+
+income_range = st.sidebar.slider(
+    "💰 Monthly Income Range", 
+    int(df['Monthly_Income'].min()), 
+    int(df['Monthly_Income'].max()), 
+    (int(df['Monthly_Income'].min()), int(df['Monthly_Income'].max())),
+    help="Select income range to analyze"
+)
+
+job_level_filter = st.sidebar.multiselect(
+    "📈 Job Level",
+    options=sorted(df['Job_Level'].unique()),
+    default=sorted(df['Job_Level'].unique()),
+    help="Filter by job level (1=Entry, 4=Senior)"
+)
+
+# Advanced filters in expander
+with st.sidebar.expander("🔍 Advanced Filters"):
+    performance_filter = st.multiselect(
+        "Performance Rating",
+        options=sorted(df['Performance_Rating'].unique()),
+        default=sorted(df['Performance_Rating'].unique())
+    )
+    
+    travel_filter = st.multiselect(
+        "Business Travel",
+        options=df['Business_Travel'].unique(),
+        default=df['Business_Travel'].unique()
+    )
 
 # Filter data
 filtered_df = df[
     (df['Department'].isin(selected_dept)) & 
     (df['CF_age_band'].isin(selected_age)) &
     (df['Monthly_Income'] >= income_range[0]) &
-    (df['Monthly_Income'] <= income_range[1])
+    (df['Monthly_Income'] <= income_range[1]) &
+    (df['Job_Level'].isin(job_level_filter)) &
+    (df['Performance_Rating'].isin(performance_filter)) &
+    (df['Business_Travel'].isin(travel_filter))
 ]
 
+# Data validation
+if len(filtered_df) == 0:
+    st.warning("⚠️ No data matches your filter criteria. Please adjust your filters.")
+    st.stop()
+
 # Key Metrics Row
+st.subheader("📊 Key Performance Indicators")
 col1, col2, col3, col4, col5 = st.columns(5)
 
 total_employees = len(filtered_df)
@@ -230,19 +123,41 @@ attrition_rate = (attrition_count / total_employees * 100) if total_employees > 
 avg_tenure = filtered_df['Years_At_Company'].mean()
 
 with col1:
-    st.metric("Total Employees", f"{total_employees:,}")
+    st.metric(
+        "Total Employees", 
+        f"{total_employees:,}",
+        help="Total number of employees in filtered data"
+    )
 with col2:
-    st.metric("Current Employees", f"{current_employees:,}")
+    st.metric(
+        "Current Employees", 
+        f"{current_employees:,}",
+        help="Number of active employees"
+    )
 with col3:
-    st.metric("Attrition Count", f"{attrition_count:,}")
+    st.metric(
+        "Attrition Count", 
+        f"{attrition_count:,}",
+        help="Number of employees who left"
+    )
 with col4:
-    st.metric("Attrition Rate", f"{attrition_rate:.1f}%")
+    delta_color = "inverse" if attrition_rate > 15 else "normal"
+    st.metric(
+        "Attrition Rate", 
+        f"{attrition_rate:.1f}%",
+        help="Percentage of employees who left the company"
+    )
 with col5:
-    st.metric("Avg. Tenure", f"{avg_tenure:.1f} years")
+    st.metric(
+        "Avg. Tenure", 
+        f"{avg_tenure:.1f} years",
+        help="Average years employees stay with the company"
+    )
 
 st.markdown("---")
 
 # Charts Row 1
+st.subheader("📈 Departmental & Demographic Analysis")
 col1, col2 = st.columns(2)
 
 with col1:
@@ -251,10 +166,17 @@ with col1:
     dept_attrition['Total'] = dept_attrition.sum(axis=1)
     dept_attrition['Attrition_Rate'] = (dept_attrition['Yes'] / dept_attrition['Total'] * 100).round(1)
     
-    fig1 = px.bar(dept_attrition.reset_index(), x='Department', y='Attrition_Rate',
-                  title='Attrition Rate by Department', color='Attrition_Rate',
-                  color_continuous_scale='Reds')
-    fig1.update_layout(height=400)
+    fig1 = px.bar(
+        dept_attrition.reset_index(), 
+        x='Department', 
+        y='Attrition_Rate',
+        title='Attrition Rate by Department (%)', 
+        color='Attrition_Rate',
+        color_continuous_scale='Reds',
+        text='Attrition_Rate'
+    )
+    fig1.update_traces(texttemplate='%{text}%', textposition='outside')
+    fig1.update_layout(height=400, showlegend=False)
     st.plotly_chart(fig1, use_container_width=True)
 
 with col2:
@@ -263,17 +185,35 @@ with col2:
     age_attrition['Total'] = age_attrition.sum(axis=1)
     age_attrition['Attrition_Rate'] = (age_attrition['Yes'] / age_attrition['Total'] * 100).round(1)
     
-    fig2 = px.bar(age_attrition.reset_index(), x='CF_age_band', y='Attrition_Rate',
-                  title='Attrition Rate by Age Band', color='Attrition_Rate',
-                  color_continuous_scale='Blues')
-    fig2.update_layout(height=400)
+    # Reorder age bands logically
+    age_order = ['Under 25', '25 - 34', '35 - 44', '45 - 54', 'Over 55']
+    age_attrition_reset = age_attrition.reset_index()
+    age_attrition_reset['CF_age_band'] = pd.Categorical(
+        age_attrition_reset['CF_age_band'], 
+        categories=age_order, 
+        ordered=True
+    )
+    age_attrition_reset = age_attrition_reset.sort_values('CF_age_band')
+    
+    fig2 = px.bar(
+        age_attrition_reset, 
+        x='CF_age_band', 
+        y='Attrition_Rate',
+        title='Attrition Rate by Age Band (%)', 
+        color='Attrition_Rate',
+        color_continuous_scale='Blues',
+        text='Attrition_Rate'
+    )
+    fig2.update_traces(texttemplate='%{text}%', textposition='outside')
+    fig2.update_layout(height=400, showlegend=False)
     st.plotly_chart(fig2, use_container_width=True)
 
 # Charts Row 2
+st.subheader("💡 Satisfaction & Compensation Analysis")
 col1, col2 = st.columns(2)
 
 with col1:
-    # Satisfaction vs Attrition
+    # Satisfaction vs Attrition Heatmap
     satisfaction_cols = ['Job_Satisfaction', 'Environment_Satisfaction', 
                         'Relationship_Satisfaction', 'Work_Life_Balance']
     
@@ -290,96 +230,232 @@ with col1:
                     'Count': len(subset)
                 })
     
-    sat_df = pd.DataFrame(sat_data)
-    
-    fig3 = px.scatter(sat_df, x='Rating', y='Attrition_Rate', 
-                      color='Satisfaction_Type', size='Count',
-                      title='Satisfaction Ratings vs Attrition Rate')
-    fig3.update_layout(height=400)
-    st.plotly_chart(fig3, use_container_width=True)
+    if sat_data:
+        sat_df = pd.DataFrame(sat_data)
+        
+        fig3 = px.scatter(
+            sat_df, 
+            x='Rating', 
+            y='Attrition_Rate', 
+            color='Satisfaction_Type', 
+            size='Count',
+            title='Satisfaction Ratings vs Attrition Rate',
+            hover_data=['Count']
+        )
+        fig3.update_layout(height=400)
+        st.plotly_chart(fig3, use_container_width=True)
 
 with col2:
     # Income Distribution by Attrition
-    fig4 = px.box(filtered_df, x='Attrition', y='Monthly_Income',
-                  title='Monthly Income Distribution by Attrition Status',
-                  color='Attrition')
+    fig4 = px.box(
+        filtered_df, 
+        x='Attrition', 
+        y='Monthly_Income',
+        title='Monthly Income Distribution by Attrition Status',
+        color='Attrition',
+        color_discrete_map={'Yes': '#ff7f7f', 'No': '#7fbf7f'}
+    )
     fig4.update_layout(height=400)
     st.plotly_chart(fig4, use_container_width=True)
 
 # Charts Row 3
+st.subheader("⏱️ Tenure & Work-Life Balance Impact")
 col1, col2 = st.columns(2)
 
 with col1:
     # Tenure vs Attrition
-    tenure_bins = pd.cut(filtered_df['Years_At_Company'], bins=5, precision=0)
-    tenure_attrition = filtered_df.groupby([tenure_bins, 'Attrition']).size().unstack(fill_value=0)
-    tenure_attrition['Total'] = tenure_attrition.sum(axis=1)
-    tenure_attrition['Attrition_Rate'] = (tenure_attrition['Yes'] / tenure_attrition['Total'] * 100).round(1)
-    
-    fig5 = px.line(tenure_attrition.reset_index(), x='Years_At_Company', y='Attrition_Rate',
-                   title='Attrition Rate by Years at Company', markers=True)
-    fig5.update_layout(height=400)
-    st.plotly_chart(fig5, use_container_width=True)
+    if filtered_df['Years_At_Company'].max() > 0:
+        tenure_bins = pd.cut(filtered_df['Years_At_Company'], bins=5, precision=0)
+        tenure_attrition = filtered_df.groupby([tenure_bins, 'Attrition']).size().unstack(fill_value=0)
+        
+        if len(tenure_attrition) > 0:
+            tenure_attrition['Total'] = tenure_attrition.sum(axis=1)
+            tenure_attrition['Attrition_Rate'] = (tenure_attrition['Yes'] / tenure_attrition['Total'] * 100).round(1)
+            
+            fig5 = px.line(
+                tenure_attrition.reset_index(), 
+                x='Years_At_Company', 
+                y='Attrition_Rate',
+                title='Attrition Rate by Years at Company', 
+                markers=True,
+                line_shape='spline'
+            )
+            fig5.update_layout(height=400)
+            st.plotly_chart(fig5, use_container_width=True)
 
 with col2:
     # Overtime and Travel Impact
     overtime_travel = filtered_df.groupby(['Over_Time', 'Business_Travel', 'Attrition']).size().unstack(fill_value=0)
-    overtime_travel['Total'] = overtime_travel.sum(axis=1)
-    overtime_travel['Attrition_Rate'] = (overtime_travel['Yes'] / overtime_travel['Total'] * 100).round(1)
-    overtime_travel_reset = overtime_travel.reset_index()
-    overtime_travel_reset['Category'] = overtime_travel_reset['Over_Time'] + ' + ' + overtime_travel_reset['Business_Travel']
     
-    fig6 = px.bar(overtime_travel_reset, x='Category', y='Attrition_Rate',
-                  title='Attrition Rate by Overtime & Travel', color='Attrition_Rate',
-                  color_continuous_scale='Oranges')
-    fig6.update_layout(height=400, xaxis_tickangle=-45)
-    st.plotly_chart(fig6, use_container_width=True)
+    if len(overtime_travel) > 0:
+        overtime_travel['Total'] = overtime_travel.sum(axis=1)
+        overtime_travel['Attrition_Rate'] = (overtime_travel['Yes'] / overtime_travel['Total'] * 100).round(1)
+        overtime_travel_reset = overtime_travel.reset_index()
+        overtime_travel_reset['Category'] = (overtime_travel_reset['Over_Time'] + 
+                                           ' OT + ' + 
+                                           overtime_travel_reset['Business_Travel'])
+        
+        fig6 = px.bar(
+            overtime_travel_reset, 
+            x='Category', 
+            y='Attrition_Rate',
+            title='Attrition Rate by Overtime & Travel (%)', 
+            color='Attrition_Rate',
+            color_continuous_scale='Oranges',
+            text='Attrition_Rate'
+        )
+        fig6.update_traces(texttemplate='%{text}%', textposition='outside')
+        fig6.update_layout(height=400, xaxis_tickangle=-45, showlegend=False)
+        st.plotly_chart(fig6, use_container_width=True)
 
-# Summary insights
-st.markdown("---")
-st.subheader("🔍 Key Insights")
+# Performance Analysis
+st.subheader("🎯 Performance & Development Analysis")
+col1, col2 = st.columns(2)
+
+with col1:
+    # Performance Rating vs Attrition
+    perf_attrition = filtered_df.groupby(['Performance_Rating', 'Attrition']).size().unstack(fill_value=0)
+    perf_attrition['Total'] = perf_attrition.sum(axis=1)
+    perf_attrition['Attrition_Rate'] = (perf_attrition['Yes'] / perf_attrition['Total'] * 100).round(1)
+    
+    fig7 = px.bar(
+        perf_attrition.reset_index(),
+        x='Performance_Rating',
+        y='Attrition_Rate',
+        title='Attrition Rate by Performance Rating',
+        color='Attrition_Rate',
+        color_continuous_scale='Viridis',
+        text='Attrition_Rate'
+    )
+    fig7.update_traces(texttemplate='%{text}%', textposition='outside')
+    fig7.update_layout(height=400, showlegend=False)
+    st.plotly_chart(fig7, use_container_width=True)
+
+with col2:
+    # Training vs Attrition
+    training_attrition = filtered_df.groupby(['Training_Times_Last_Year', 'Attrition']).size().unstack(fill_value=0)
+    training_attrition['Total'] = training_attrition.sum(axis=1)
+    training_attrition['Attrition_Rate'] = (training_attrition['Yes'] / training_attrition['Total'] * 100).round(1)
+    
+    fig8 = px.bar(
+        training_attrition.reset_index(),
+        x='Training_Times_Last_Year',
+        y='Attrition_Rate',
+        title='Attrition Rate by Training Times Last Year',
+        color='Attrition_Rate',
+        color_continuous_scale='Purples',
+        text='Attrition_Rate'
+    )
+    fig8.update_traces(texttemplate='%{text}%', textposition='outside')
+    fig8.update_layout(height=400, showlegend=False)
+    st.plotly_chart(fig8, use_container_width=True)
+
+# Advanced Analytics
+st.subheader("🔍 Advanced Analytics & Insights")
+
+# Correlation Analysis
+st.subheader("📊 Factor Correlation Matrix")
+numeric_cols = ['Monthly_Income', 'Years_At_Company', 'Job_Satisfaction', 
+                'Environment_Satisfaction', 'Work_Life_Balance', 'Job_Level',
+                'Performance_Rating', 'Training_Times_Last_Year']
+
+# Create binary attrition column for correlation
+filtered_df_corr = filtered_df.copy()
+filtered_df_corr['Attrition_Binary'] = (filtered_df_corr['Attrition'] == 'Yes').astype(int)
+
+# Calculate correlations with attrition
+correlations = []
+for col in numeric_cols:
+    if col in filtered_df_corr.columns:
+        corr = filtered_df_corr[col].corr(filtered_df_corr['Attrition_Binary'])
+        correlations.append({'Factor': col.replace('_', ' '), 'Correlation_with_Attrition': corr})
+
+if correlations:
+    corr_df = pd.DataFrame(correlations).sort_values('Correlation_with_Attrition', key=abs, ascending=False)
+    
+    fig9 = px.bar(
+        corr_df,
+        x='Correlation_with_Attrition',
+        y='Factor',
+        orientation='h',
+        title='Correlation of Factors with Attrition',
+        color='Correlation_with_Attrition',
+        color_continuous_scale='RdBu_r',
+        text='Correlation_with_Attrition'
+    )
+    fig9.update_traces(texttemplate='%{text:.3f}', textposition='outside')
+    fig9.update_layout(height=500)
+    st.plotly_chart(fig9, use_container_width=True)
+
+# Summary Insights
+st.subheader("💡 Key Insights & Recommendations")
+
+# Calculate key insights
+high_risk_dept = dept_attrition['Attrition_Rate'].idxmax() if len(dept_attrition) > 0 else "N/A"
+high_risk_age = age_attrition['Attrition_Rate'].idxmax() if len(age_attrition) > 0 else "N/A"
+avg_income_staying = filtered_df[filtered_df['Attrition'] == 'No']['Monthly_Income'].mean()
+avg_income_leaving = filtered_df[filtered_df['Attrition'] == 'Yes']['Monthly_Income'].mean()
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown("**High Risk Factors:**")
-    high_risk_overtime = filtered_df[filtered_df['Over_Time'] == 'Yes']['Attrition'].value_counts(normalize=True)['Yes'] * 100
-    high_risk_travel = filtered_df[filtered_df['Business_Travel'] == 'Travel_Frequently']['Attrition'].value_counts(normalize=True)['Yes'] * 100
-    
-    if 'Yes' in high_risk_overtime:
-        st.write(f"• Overtime workers: {high_risk_overtime:.1f}% attrition rate")
-    if 'Yes' in high_risk_travel:
-        st.write(f"• Frequent travelers: {high_risk_travel:.1f}% attrition rate")
-    
-    low_satisfaction = filtered_df[filtered_df['Job_Satisfaction'] <= 2]
-    if len(low_satisfaction) > 0:
-        low_sat_attrition = (low_satisfaction['Attrition'] == 'Yes').mean() * 100
-        st.write(f"• Low job satisfaction: {low_sat_attrition:.1f}% attrition rate")
+    st.info(f"""
+    **🔍 Key Risk Factors:**
+    - Highest risk department: **{high_risk_dept}** ({dept_attrition.loc[high_risk_dept, 'Attrition_Rate']:.1f}% attrition)
+    - Highest risk age group: **{high_risk_age}** ({age_attrition.loc[high_risk_age, 'Attrition_Rate']:.1f}% attrition)
+    - Income gap: Leaving employees earn **${avg_income_leaving-avg_income_staying:,.0f}** {'more' if avg_income_leaving > avg_income_staying else 'less'} on average
+    """)
 
 with col2:
-    st.markdown("**Retention Factors:**")
-    high_performers = filtered_df[filtered_df['Performance_Rating'] >= 3]
-    if len(high_performers) > 0:
-        high_perf_retention = (high_performers['Attrition'] == 'No').mean() * 100
-        st.write(f"• High performers: {high_perf_retention:.1f}% retention rate")
-    
-    long_tenure = filtered_df[filtered_df['Years_At_Company'] >= 5]
-    if len(long_tenure) > 0:
-        long_tenure_retention = (long_tenure['Attrition'] == 'No').mean() * 100
-        st.write(f"• 5+ years tenure: {long_tenure_retention:.1f}% retention rate")
-    
-    stock_options = filtered_df[filtered_df['Stock_Option_Level'] > 0]
-    if len(stock_options) > 0:
-        stock_retention = (stock_options['Attrition'] == 'No').mean() * 100
-        st.write(f"• Stock options holders: {stock_retention:.1f}% retention rate")
+    st.success(f"""
+    **💡 Recommendations:**
+    - Focus retention efforts on **{high_risk_dept}** department
+    - Develop targeted programs for **{high_risk_age}** age group
+    - Review compensation strategy - {'consider salary adjustments' if avg_income_leaving < avg_income_staying else 'investigate non-monetary factors'}
+    - Enhance work-life balance initiatives
+    """)
 
-# Data table
-st.markdown("---")
-st.subheader("📋 Employee Data Summary")
-summary_cols = ['Department', 'Job_Role', 'CF_age_band', 'Monthly_Income', 
-                'Years_At_Company', 'Job_Satisfaction', 'Attrition']
-st.dataframe(filtered_df[summary_cols].head(20), use_container_width=True)
+# Data Export Section
+st.subheader("📥 Data Export")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    # Export filtered data
+    csv_data = filtered_df.to_csv(index=False)
+    st.download_button(
+        label="📊 Download Filtered Data (CSV)",
+        data=csv_data,
+        file_name=f"hr_filtered_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        mime="text/csv"
+    )
+
+with col2:
+    # Export summary statistics
+    summary_stats = filtered_df.describe()
+    summary_csv = summary_stats.to_csv()
+    st.download_button(
+        label="📈 Download Summary Stats (CSV)",
+        data=summary_csv,
+        file_name=f"hr_summary_stats_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        mime="text/csv"
+    )
+
+with col3:
+    # Export attrition analysis
+    if len(dept_attrition) > 0:
+        analysis_csv = dept_attrition.to_csv()
+        st.download_button(
+            label="🔍 Download Attrition Analysis (CSV)",
+            data=analysis_csv,
+            file_name=f"hr_attrition_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv"
+        )
 
 # Footer
 st.markdown("---")
-st.markdown("*Dashboard last updated: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "*")
+st.markdown("""
+<div style='text-align: center; color: #666;'>
+    <p>📊 HR Attrition Analytics Dashboard | Built with Streamlit & Plotly</p>
+    <p>💡 Use the filters on the left to explore different employee segments and identify key attrition patterns</p>
+</div>
+""", unsafe_allow_html=True)
