@@ -262,26 +262,48 @@ with col2:
 st.subheader("⏱️ Tenure & Work-Life Balance Impact")
 col1, col2 = st.columns(2)
 
+# Replace the tenure analysis section (around lines 270-284) with this fixed version:
+
 with col1:
-    # Tenure vs Attrition
+    # Tenure vs Attrition - FIXED VERSION
     if filtered_df['Years_At_Company'].max() > 0:
+        # Create tenure bins and convert to string labels
         tenure_bins = pd.cut(filtered_df['Years_At_Company'], bins=5, precision=0)
-        tenure_attrition = filtered_df.groupby([tenure_bins, 'Attrition']).size().unstack(fill_value=0)
+        
+        # Convert intervals to string labels for JSON serialization
+        tenure_labels = tenure_bins.astype(str)
+        
+        # Create a temporary dataframe for grouping
+        temp_df = filtered_df.copy()
+        temp_df['Tenure_Range'] = tenure_labels
+        
+        tenure_attrition = temp_df.groupby(['Tenure_Range', 'Attrition']).size().unstack(fill_value=0)
         
         if len(tenure_attrition) > 0:
             tenure_attrition['Total'] = tenure_attrition.sum(axis=1)
             tenure_attrition['Attrition_Rate'] = (tenure_attrition['Yes'] / tenure_attrition['Total'] * 100).round(1)
             
+            # Reset index to get tenure ranges as a column
+            tenure_plot_data = tenure_attrition.reset_index()
+            
             fig5 = px.line(
-                tenure_attrition.reset_index(), 
-                x='Years_At_Company', 
+                tenure_plot_data, 
+                x='Tenure_Range', 
                 y='Attrition_Rate',
                 title='Attrition Rate by Years at Company', 
                 markers=True,
                 line_shape='spline'
             )
-            fig5.update_layout(height=400)
+            fig5.update_layout(
+                height=400,
+                xaxis_title="Years at Company (Range)",
+                xaxis_tickangle=-45  # Rotate labels for better readability
+            )
             st.plotly_chart(fig5, use_container_width=True)
+        else:
+            st.info("Insufficient data for tenure analysis")
+    else:
+        st.info("No tenure data available for analysis")
 
 with col2:
     # Overtime and Travel Impact
